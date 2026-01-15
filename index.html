@@ -1,804 +1,1394 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Open World: Village & City</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epoch Clash RPG</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        /* UI LAYOUT */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; text-shadow: 1px 1px 2px black; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+            color: white;
+        }
         
-        /* STATS (TOP LEFT) */
-        .stats-box { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; color: white; border: 2px solid #555; pointer-events: auto; }
-        .bar-wrap { width: 200px; height: 12px; background: #333; margin: 5px 0; border: 1px solid #fff; position: relative; }
-        .bar-fill { height: 100%; transition: width 0.3s; }
-        #hp-fill { background: #e74c3c; }
-        #food-fill { background: #f39c12; }
-        #stamina-fill { background: #2ecc71; }
-        .stat-text { font-size: 14px; margin-bottom: 5px; font-weight: bold; }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
         
-        /* INFO (TOP RIGHT) */
-        .info-box { position: absolute; top: 10px; right: 10px; text-align: right; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; }
+        #canvasContainer {
+            width: 100%;
+            height: 100%;
+        }
         
-        /* MINIMAP (BOTTOM RIGHT) */
-        #minimap-container { position: absolute; bottom: 20px; right: 20px; width: 200px; height: 200px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #222; }
-        #minimap-content { width: 100%; height: 100%; position: relative; }
-        .map-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; transform: translate(-50%, -50%); }
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
         
-        /* INTERACTION & CROSSHAIR */
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 5px black; }
-        #interaction-msg { position: absolute; top: 55%; left: 50%; transform: translate(-50%, 0); color: yellow; font-size: 18px; font-weight: bold; display: none; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; }
+        #stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+            border: 2px solid #4a4a4a;
+        }
         
-        /* MENUS (CENTER) */
-        .menu-modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(20, 20, 20, 0.95); color: white; padding: 20px; border: 2px solid gold; border-radius: 10px; pointer-events: auto; min-width: 300px; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
-        .menu-modal h2 { margin-top: 0; color: gold; border-bottom: 1px solid gray; padding-bottom: 10px; }
-        .btn { display: block; width: 100%; padding: 10px; margin: 5px 0; background: #444; color: white; border: 1px solid #666; cursor: pointer; text-align: left; }
-        .btn:hover { background: #666; border-color: white; }
+        .stat-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
         
-        /* CONTROLS HINT */
-        #controls-hint { position: absolute; bottom: 10px; left: 10px; color: rgba(255,255,255,0.7); font-size: 12px; }
-
-        /* NOTIFICATIONS */
-        #notification-area { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); text-align: center; }
-        .notify { background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 5px; margin-bottom: 5px; animation: fadeOut 4s forwards; border: 1px solid gold; }
-        @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; display: none; } }
+        .stat-label {
+            min-width: 100px;
+            font-weight: bold;
+        }
+        
+        .stat-value {
+            margin-left: 10px;
+            color: #ffd700;
+        }
+        
+        .health-bar, .hunger-bar {
+            width: 150px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-left: 10px;
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(to right, #ff0000, #00ff00);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+        
+        .hunger-fill {
+            height: 100%;
+            background: linear-gradient(to right, #8b4513, #ffd700);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+        
+        #hotbar {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            pointer-events: auto;
+        }
+        
+        .hotbar-slot {
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #4a4a4a;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .hotbar-slot.active {
+            border-color: #ffd700;
+            box-shadow: 0 0 15px #ffd700;
+            transform: translateY(-5px);
+        }
+        
+        .hotbar-icon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+        
+        .hotbar-label {
+            font-size: 10px;
+            text-align: center;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+        
+        .crosshair-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+        }
+        
+        .crosshair-line {
+            position: absolute;
+            background: white;
+        }
+        
+        .horizontal {
+            width: 10px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .vertical {
+            width: 2px;
+            height: 10px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            pointer-events: none;
+        }
+        
+        #instructions h3 {
+            margin-bottom: 10px;
+            color: #ffd700;
+        }
+        
+        #instructions p {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        #tradeModal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid #ffd700;
+            border-radius: 15px;
+            padding: 25px;
+            width: 500px;
+            max-width: 90%;
+            z-index: 100;
+            pointer-events: auto;
+            display: none;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ffd700;
+            padding-bottom: 10px;
+        }
+        
+        .modal-title {
+            font-size: 24px;
+            color: #ffd700;
+        }
+        
+        .close-btn {
+            background: #ff0000;
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .trade-items {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .trade-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .trade-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #ffd700;
+        }
+        
+        .item-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .item-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .item-price {
+            color: #ffd700;
+        }
+        
+        .player-resources {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .resource {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .resource-value {
+            font-size: 20px;
+            color: #ffd700;
+            margin-top: 5px;
+        }
+        
+        #message {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border-left: 5px solid #ffd700;
+        }
+        
+        #pauseScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            display: none;
+        }
+        
+        #pauseTitle {
+            font-size: 48px;
+            color: #ffd700;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+        }
+        
+        #pauseSubtitle {
+            font-size: 20px;
+            margin-bottom: 40px;
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        .start-btn {
+            background: linear-gradient(to bottom, #ffd700, #ffaa00);
+            border: none;
+            color: black;
+            font-weight: bold;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+        
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+        }
     </style>
 </head>
 <body>
-
-<div id="ui-layer">
-    <div class="stats-box">
-        <div class="stat-text">❤️ Здоровье <span id="val-hp">100</span>%</div>
-        <div class="bar-wrap"><div id="hp-fill" class="bar-fill" style="width: 100%"></div></div>
+    <div id="gameContainer">
+        <div id="canvasContainer"></div>
         
-        <div class="stat-text">🍖 Голод <span id="val-food">100</span>%</div>
-        <div class="bar-wrap"><div id="food-fill" class="bar-fill" style="width: 100%"></div></div>
-        
-        <div class="stat-text">⚡ Выносливость <span id="val-stam">100</span>%</div>
-        <div class="bar-wrap"><div id="stamina-fill" class="bar-fill" style="width: 100%"></div></div>
-        
-        <div style="margin-top: 10px; border-top: 1px solid #555; padding-top:5px;">
-            <div>💰 Деньги: <span id="val-money" style="color: gold">500</span></div>
-            <div>👷 Профессия: <span id="val-job" style="color: cyan">Безработный</span></div>
-            <div>📜 Земель: <span id="val-land">0</span></div>
+        <div id="ui">
+            <div id="stats">
+                <div class="stat-row">
+                    <div class="stat-label">Health:</div>
+                    <div class="health-bar">
+                        <div class="health-fill" id="healthFill"></div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label">Hunger:</div>
+                    <div class="hunger-bar">
+                        <div class="hunger-fill" id="hungerFill"></div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label">Money:</div>
+                    <div class="stat-value" id="moneyValue">100</div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label">Ores:</div>
+                    <div class="stat-value" id="oresValue">Gold: 0, Diamond: 0</div>
+                </div>
+            </div>
+            
+            <div id="hotbar">
+                <!-- Hotbar slots will be generated by JS -->
+            </div>
+            
+            <div id="crosshair">
+                <div class="crosshair-dot"></div>
+                <div class="crosshair-line horizontal"></div>
+                <div class="crosshair-line vertical"></div>
+            </div>
+            
+            <div id="instructions">
+                <h3>Epoch Clash RPG</h3>
+                <p>WASD: Move | SPACE: Jump | SHIFT: Run | MOUSE: Look around</p>
+                <p>LEFT CLICK: Mine/Attack | RIGHT CLICK: Place block | 1-5: Select item</p>
+                <p>E: Interact with NPC | ESC: Pause/Menu</p>
+            </div>
+            
+            <div id="message"></div>
+            
+            <div id="tradeModal">
+                <div class="modal-header">
+                    <div class="modal-title" id="traderName">Trader</div>
+                    <button class="close-btn" id="closeTrade">X</button>
+                </div>
+                
+                <div class="player-resources">
+                    <div class="resource">
+                        <div>Money</div>
+                        <div class="resource-value" id="tradeMoney">100</div>
+                    </div>
+                    <div class="resource">
+                        <div>Gold Ore</div>
+                        <div class="resource-value" id="tradeGold">0</div>
+                    </div>
+                    <div class="resource">
+                        <div>Diamond Ore</div>
+                        <div class="resource-value" id="tradeDiamond">0</div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-bottom: 15px; color: #ffd700;">Buy Items</h3>
+                <div class="trade-items" id="buyItems">
+                    <!-- Buy items will be generated by JS -->
+                </div>
+                
+                <h3 style="margin-bottom: 15px; color: #ffd700;">Sell Ores</h3>
+                <div class="trade-items" id="sellItems">
+                    <!-- Sell items will be generated by JS -->
+                </div>
+            </div>
+            
+            <div id="pauseScreen">
+                <h1 id="pauseTitle">EPOCH CLASH RPG</h1>
+                <div id="pauseSubtitle">
+                    Explore a world split between Medieval and Modern eras! Mine ores underground, trade with NPCs, and build your own structures.
+                    <br><br>Click START to begin your adventure!
+                </div>
+                <button class="start-btn" id="startBtn">START GAME</button>
+            </div>
         </div>
     </div>
 
-    <div class="info-box">
-        <div id="game-time" style="font-size: 24px; font-weight: bold;">12:00</div>
-        <div id="game-date">День 1 (Весна)</div>
-        <div id="game-loc">Дикая местность</div>
-    </div>
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.132.2/build/three.module.js';
+        import { PointerLockControls } from 'https://unpkg.com/three@0.132.2/examples/jsm/controls/PointerLockControls.js';
 
-    <div id="crosshair"></div>
-    <div id="interaction-msg">Нажмите [E]</div>
+        // Game Variables
+        const gameState = {
+            paused: true,
+            health: 100,
+            maxHealth: 100,
+            hunger: 100,
+            maxHunger: 100,
+            money: 100,
+            goldOre: 0,
+            diamondOre: 0,
+            selectedHotbarIndex: 0,
+            hotbarItems: [
+                { id: 1, name: 'Sword', icon: '⚔️', type: 'weapon' },
+                { id: 2, name: 'Pickaxe', icon: '⛏️', type: 'tool' },
+                { id: 3, name: 'Grass', icon: '🟩', type: 'block', blockId: 1 },
+                { id: 4, name: 'Stone', icon: '🪨', type: 'block', blockId: 2 },
+                { id: 5, name: 'Potion', icon: '🧪', type: 'consumable' }
+            ],
+            traders: []
+        };
 
-    <div id="minimap-container">
-        <div id="minimap-content">
-            </div>
-    </div>
-
-    <div id="inventory-menu" class="menu-modal">
-        <h2>🎒 Инвентарь</h2>
-        <div id="inv-list">Пусто</div>
-        <button class="btn" onclick="ui.closeMenus()">Закрыть (ESC)</button>
-    </div>
-
-    <div id="build-menu" class="menu-modal">
-        <h2>🏗️ Меню строительства</h2>
-        <div id="build-list"></div>
-        <button class="btn" onclick="ui.closeMenus()">Закрыть (ESC)</button>
-    </div>
-
-    <div id="dialog-menu" class="menu-modal">
-        <h2 id="npc-name">NPC</h2>
-        <p id="npc-text">Привет!</p>
-        <div id="npc-options"></div>
-        <button class="btn" onclick="ui.closeMenus()">Уйти</button>
-    </div>
-    
-    <div id="notification-area"></div>
-    
-    <div id="controls-hint">
-        WASD: Движение | Shift: Бег | Пробел: Прыжок | V: Транспорт<br>
-        E: Действие | B: Стройка | L: Купить землю | I: Инвентарь | C: Камера
-    </div>
-</div>
-
-<script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-
-// ==========================================
-// 1. КОНФИГУРАЦИЯ И СОСТОЯНИЕ
-// ==========================================
-const config = {
-    worldSize: 1000,
-    chunkSize: 50,
-    colors: {
-        grass: 0x41980a, water: 0x006994, mountain: 0x5a5a5a, snow: 0xffffff,
-        path: 0x8b5a2b, cityGround: 0x222222
-    }
-};
-
-const state = {
-    player: {
-        hp: 100, food: 100, stamina: 100, money: 500,
-        job: 'Безработный', lands: 0,
-        speed: 0, isRunning: false, isJumping: false, velocity: new THREE.Vector3(),
-        inventory: { wood: 0, stone: 0, iron: 0, gold_ore: 0, food: 5, medkit: 0 },
-        vehicle: null, // 'horse', 'boat', 'cart'
-        thirdPerson: false
-    },
-    world: {
-        time: 8.0, day: 1, season: 0, // 0: Spring, 1: Summer, 2: Autumn, 3: Winter
-        buildings: [],
-        resources: [],
-        npcs: [],
-        enemies: [],
-        taxesPaid: false
-    },
-    input: {},
-    flags: { menuOpen: false, nearNPC: null, nearResource: null }
-};
-
-const seasons = ['Весна', 'Лето', 'Осень', 'Зима'];
-
-// ==========================================
-// 2. ГРАФИКА И ТЕКСТУРЫ (ПРОЦЕДУРНЫЕ)
-// ==========================================
-function createProceduralTexture(type) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    
-    if (type === 'grass') {
-        ctx.fillStyle = '#41980a'; ctx.fillRect(0,0,256,256);
-        for(let i=0; i<1000; i++) {
-            ctx.fillStyle = Math.random() > 0.5 ? '#3a8508' : '#4cb00c';
-            ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
+        // Three.js Variables
+        let scene, camera, renderer, controls, clock;
+        let world = new Map(); // Store voxel data
+        const BLOCK_SIZE = 1;
+        const WORLD_WIDTH = 50;
+        const WORLD_DEPTH = 50;
+        const WORLD_HEIGHT = 32;
+        const MEDIEVAL_BOUNDARY = 25; // X coordinate where medieval ends and modern begins
+        
+        // Physics variables
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let canJump = false;
+        let isRunning = false;
+        
+        // Raycaster for block interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        // Block types
+        const BLOCK_TYPES = {
+            0: { name: 'air', color: null },
+            1: { name: 'grass', color: 0x7cfc00 },
+            2: { name: 'stone', color: 0x808080 },
+            3: { name: 'wood', color: 0x8b4513 },
+            4: { name: 'asphalt', color: 0x333333 },
+            5: { name: 'concrete', color: 0xa9a9a9 },
+            6: { name: 'glass', color: 0x87ceeb, transparent: true, opacity: 0.3 },
+            7: { name: 'gold_ore', color: 0xffd700 },
+            8: { name: 'diamond_ore', color: 0x00ffff },
+            9: { name: 'dirt', color: 0x8b7355 },
+            10: { name: 'bedrock', color: 0x222222 }
+        };
+        
+        // Initialize the game
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87ceeb, 10, 100);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(WORLD_WIDTH/2, 20, WORLD_DEPTH/2);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvasContainer').appendChild(renderer.domElement);
+            
+            // Create clock for animations
+            clock = new THREE.Clock();
+            
+            // Create controls
+            controls = new PointerLockControls(camera, document.body);
+            scene.add(controls.getObject());
+            
+            // Generate world
+            generateWorld();
+            
+            // Add lighting
+            setupLighting();
+            
+            // Create hotbar UI
+            createHotbarUI();
+            
+            // Create trade UI
+            createTradeUI();
+            
+            // Event listeners
+            setupEventListeners();
+            
+            // Start game loop
+            animate();
+            
+            // Show start screen
+            document.getElementById('pauseScreen').style.display = 'flex';
+            
+            // Show initial message
+            showMessage('Welcome to Epoch Clash RPG! Explore the Medieval (left) and Modern (right) worlds!');
         }
-    } else if (type === 'brick') {
-        ctx.fillStyle = '#8b4513'; ctx.fillRect(0,0,256,256);
-        ctx.strokeStyle = '#65320e'; ctx.lineWidth = 2;
-        for(let y=0; y<256; y+=32) {
-            for(let x=0; x<256; x+=64) {
-                ctx.strokeRect(x + (y%64===0?0:32), y, 64, 32);
+        
+        // Generate the voxel world
+        function generateWorld() {
+            // Generate terrain
+            for (let x = 0; x < WORLD_WIDTH; x++) {
+                for (let z = 0; z < WORLD_DEPTH; z++) {
+                    // Determine if this is medieval or modern zone
+                    const isMedieval = x < MEDIEVAL_BOUNDARY;
+                    
+                    // Base height with some variation
+                    let baseHeight = 16;
+                    const noise = Math.sin(x * 0.2) * Math.cos(z * 0.2) * 3;
+                    baseHeight += noise;
+                    
+                    // Surface layer
+                    const surfaceBlock = isMedieval ? 1 : 4; // Grass or asphalt
+                    setBlock(x, Math.floor(baseHeight), z, surfaceBlock);
+                    
+                    // Subsurface layers
+                    for (let y = 0; y < baseHeight; y++) {
+                        if (y === Math.floor(baseHeight) - 1) {
+                            setBlock(x, y, z, isMedieval ? 9 : 2); // Dirt or stone
+                        } else if (y > baseHeight - 5) {
+                            setBlock(x, y, z, 9); // Dirt
+                        } else {
+                            // Underground - chance for ores
+                            const rand = Math.random();
+                            if (rand < 0.01) {
+                                setBlock(x, y, z, 8); // Diamond ore
+                            } else if (rand < 0.05) {
+                                setBlock(x, y, z, 7); // Gold ore
+                            } else {
+                                setBlock(x, y, z, 2); // Stone
+                            }
+                        }
+                    }
+                    
+                    // Bottom layer (bedrock)
+                    setBlock(x, 0, z, 10);
+                }
+            }
+            
+            // Generate structures
+            generateMedievalStructures();
+            generateModernStructures();
+            
+            // Generate NPCs
+            generateNPCs();
+        }
+        
+        // Generate medieval structures
+        function generateMedievalStructures() {
+            // Castle
+            const castleX = 10;
+            const castleZ = 10;
+            
+            // Castle walls
+            for (let x = castleX; x < castleX + 15; x++) {
+                for (let y = 17; y < 22; y++) {
+                    setBlock(x, y, castleZ, 2);
+                    setBlock(x, y, castleZ + 10, 2);
+                }
+            }
+            
+            for (let z = castleZ; z < castleZ + 11; z++) {
+                for (let y = 17; y < 22; y++) {
+                    setBlock(castleX, y, z, 2);
+                    setBlock(castleX + 14, y, z, 2);
+                }
+            }
+            
+            // Castle towers
+            for (let i = 0; i < 4; i++) {
+                const towerX = i < 2 ? castleX : castleX + 14;
+                const towerZ = i % 2 === 0 ? castleZ : castleZ + 10;
+                
+                for (let y = 17; y < 25; y++) {
+                    setBlock(towerX, y, towerZ, 2);
+                }
+            }
+            
+            // Village houses
+            for (let i = 0; i < 5; i++) {
+                const houseX = 5 + i * 8;
+                const houseZ = 30;
+                
+                // House base
+                for (let x = houseX; x < houseX + 5; x++) {
+                    for (let z = houseZ; z < houseZ + 5; z++) {
+                        for (let y = 17; y < 20; y++) {
+                            setBlock(x, y, z, 3); // Wood
+                        }
+                    }
+                }
+                
+                // Roof
+                for (let x = houseX - 1; x < houseX + 6; x++) {
+                    for (let z = houseZ - 1; z < houseZ + 6; z++) {
+                        if (x === houseX - 1 || x === houseX + 5 || z === houseZ - 1 || z === houseZ + 5) {
+                            setBlock(x, 20, z, 2); // Stone roof edge
+                        }
+                    }
+                }
+                
+                // Door
+                removeBlock(houseX + 2, 17, houseZ);
+                removeBlock(houseX + 2, 18, houseZ);
             }
         }
-    } else if (type === 'wood') {
-        ctx.fillStyle = '#6d4c41'; ctx.fillRect(0,0,256,256);
-        ctx.strokeStyle = '#4e342e';
-        for(let i=0; i<50; i++) {
-            ctx.beginPath(); ctx.moveTo(0, Math.random()*256); ctx.lineTo(256, Math.random()*256); ctx.stroke();
-        }
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-    return tex;
-}
-
-const textures = {
-    grass: createProceduralTexture('grass'),
-    brick: createProceduralTexture('brick'),
-    wood: createProceduralTexture('wood')
-};
-
-// ==========================================
-// 3. ИНИЦИАЛИЗАЦИЯ THREE.JS
-// ==========================================
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.FogExp2(0x87ceeb, 0.0015);
-
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
-
-// СВЕТ
-const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Soft white
-scene.add(ambientLight);
-
-const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-sun.position.set(100, 200, 100);
-sun.castShadow = true;
-sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
-sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
-sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
-scene.add(sun);
-
-// ==========================================
-// 4. ГЕНЕРАЦИЯ МИРА
-// ==========================================
-const geometryStore = {
-    box: new THREE.BoxGeometry(1,1,1),
-    sphere: new THREE.SphereGeometry(1, 16, 16)
-};
-
-// --- ЗЕМЛЯ И ВОДА ---
-const groundGeo = new THREE.PlaneGeometry(2000, 2000, 64, 64);
-const groundMat = new THREE.MeshStandardMaterial({ map: textures.grass, roughness: 1 });
-textures.grass.repeat.set(100, 100);
-
-// Модификация высот для гор
-const posAttr = groundGeo.attributes.position;
-for(let i=0; i < posAttr.count; i++) {
-    const x = posAttr.getX(i);
-    const y = posAttr.getY(i);
-    // Горы справа (X > 150)
-    if(x > 180) {
-        const peak = Math.sin(x*0.02) * Math.cos(y*0.02) * 80 + 20;
-        posAttr.setZ(i, Math.max(0, peak));
-    }
-    // Река (Z около -120)
-    if(Math.abs(y - (-120)) < 20) {
-        posAttr.setZ(i, -5); 
-    }
-    // Море (X < -250)
-    if(y < -250) {
-        posAttr.setZ(i, -10);
-    }
-}
-groundGeo.computeVertexNormals();
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// Вода
-const waterGeo = new THREE.PlaneGeometry(2000, 2000);
-const waterMat = new THREE.MeshStandardMaterial({ color: 0x00aaff, transparent: true, opacity: 0.7, roughness: 0.1 });
-const water = new THREE.Mesh(waterGeo, waterMat);
-water.rotation.x = -Math.PI / 2;
-water.position.y = -2;
-scene.add(water);
-
-// --- ДЕРЕВНЯ (10-100, 10-100) ---
-const villageGroup = new THREE.Group();
-scene.add(villageGroup);
-
-function createHouse(x, z, type='house') {
-    const group = new THREE.Group();
-    group.position.set(x, 0, z);
-    
-    // Основа
-    const w = type==='shop'||type==='mayor'? 12 : 8;
-    const h = type==='skyscraper'? 40 : 6;
-    const d = w;
-    const color = type==='mayor'? 0xffffff : (type==='shop'? 0xcd853f : 0x8b4513);
-    
-    const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ map: textures.brick, color: color }));
-    base.position.y = h/2;
-    base.castShadow = true; base.receiveShadow = true;
-    group.add(base);
-
-    if(type !== 'skyscraper') {
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(w*0.8, 5, 4), new THREE.MeshStandardMaterial({ color: 0x5c3a21 }));
-        roof.position.y = h + 2.5;
-        roof.rotation.y = Math.PI/4;
-        group.add(roof);
         
-        // Окно (эмиссионное для ночи)
-        const win = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0x555500 }));
-        win.position.set(0, h/2, d/2 + 0.1);
-        group.add(win);
-    } else {
-        // Окна небоскреба
-        for(let i=10; i<h; i+=5) {
-            const win = new THREE.Mesh(new THREE.PlaneGeometry(w-2, 2), new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x111133 }));
-            win.position.set(0, i, d/2+0.1);
-            group.add(win);
-        }
-    }
-    
-    // Коллайдер
-    const collider = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({visible:false}));
-    collider.position.copy(base.position);
-    collider.userData = { type: 'building', subType: type };
-    group.add(collider);
-    state.world.buildings.push(collider);
-
-    return group;
-}
-
-// Постройки деревни
-villageGroup.add(createHouse(50, 30, 'mayor')); // Мэрия
-villageGroup.add(createHouse(70, 55, 'shop')); // Магазин
-villageGroup.add(createHouse(30, 55, 'forge')); // Кузница
-villageGroup.add(createHouse(50, 75, 'hospital')); // Больница
-villageGroup.add(createHouse(20, 25, 'farm')); // Ферма
-villageGroup.add(createHouse(65, 40, 'builder')); // Строитель
-// Жилые дома
-for(let i=0; i<8; i++) {
-    const angle = (i/8)*Math.PI*2;
-    villageGroup.add(createHouse(50 + Math.cos(angle)*40, 50 + Math.sin(angle)*40));
-}
-// Фонтан
-const fountain = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 1), new THREE.MeshStandardMaterial({color:0xaaaaaa}));
-fountain.position.set(50, 0.5, 50);
-villageGroup.add(fountain);
-
-// --- ГОРОД (-200, -100) ---
-const cityGroup = new THREE.Group();
-for(let i=0; i<25; i++) {
-    const x = -150 + (Math.random()-0.5)*100;
-    const z = -150 + (Math.random()-0.5)*100;
-    const s = createHouse(x, z, 'skyscraper');
-    cityGroup.add(s);
-}
-scene.add(cityGroup);
-
-// --- РЕСУРСЫ И ПРИРОДА ---
-const resourcesGroup = new THREE.Group();
-scene.add(resourcesGroup);
-
-function createTree(x, z) {
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 4), new THREE.MeshStandardMaterial({map: textures.wood}));
-    trunk.position.set(x, 2, z);
-    const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 8, 8), new THREE.MeshStandardMaterial({color: 0x2d5a27}));
-    leaves.position.set(x, 7, z);
-    trunk.castShadow = leaves.castShadow = true;
-    
-    // Интерактивный объект
-    const col = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), new THREE.MeshBasicMaterial({visible:false}));
-    col.position.set(x, 4, z);
-    col.userData = { type: 'resource', resType: 'wood', hp: 100 };
-    state.world.resources.push(col);
-    
-    resourcesGroup.add(trunk, leaves, col);
-}
-
-function createRock(x, z, isGold=false) {
-    const geo = new THREE.DodecahedronGeometry(1.5);
-    const mat = new THREE.MeshStandardMaterial({ color: isGold ? 0xffd700 : 0x888888 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, 1, z);
-    mesh.userData = { type: 'resource', resType: isGold?'gold':'stone', hp: 100 };
-    state.world.resources.push(mesh);
-    resourcesGroup.add(mesh);
-}
-
-// Генерация леса и камней
-for(let i=0; i<120; i++) createTree((Math.random()-0.5)*800, (Math.random()-0.5)*800);
-for(let i=0; i<40; i++) createRock((Math.random()-0.5)*800, (Math.random()-0.5)*800, false);
-for(let i=0; i<20; i++) createRock((Math.random()-0.5)*800, (Math.random()-0.5)*800, true);
-
-// --- БАНДИТЫ (-100, -100) ---
-const enemyGeo = new THREE.CapsuleGeometry(0.7, 1.8, 4, 8);
-const enemyMat = new THREE.MeshStandardMaterial({ color: 0x800000 });
-for(let i=0; i<5; i++) {
-    const en = new THREE.Mesh(enemyGeo, enemyMat);
-    en.position.set(-100 + Math.random()*20, 2, -100 + Math.random()*20);
-    en.castShadow = true;
-    en.userData = { type: 'enemy', hp: 50, aggressive: true };
-    scene.add(en);
-    state.world.enemies.push(en);
-}
-
-// --- NPC ---
-const npcData = [
-    { name: "Мэр Василий", role: "mayor", x: 50, z: 30, color: 0x0000ff },
-    { name: "Иван Торговец", role: "merchant", x: 70, z: 55, color: 0x00ff00 },
-    { name: "Петр Кузнец", role: "blacksmith", x: 30, z: 55, color: 0x555555 },
-    { name: "Доктор Анна", role: "doctor", x: 50, z: 75, color: 0xffffff },
-    { name: "Мария Фермер", role: "farmer", x: 20, z: 25, color: 0xffff00 },
-    { name: "Борис Охотник", role: "hunter", x: 80, z: 25, color: 0x8b4513 },
-    { name: "Сергей Строитель", role: "builder", x: 65, z: 40, color: 0xffa500 }
-];
-
-npcData.forEach(d => {
-    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.6, 1.7, 4, 8), new THREE.MeshStandardMaterial({ color: d.color }));
-    mesh.position.set(d.x, 1.8, d.z);
-    mesh.castShadow = true;
-    mesh.userData = { type: 'npc', data: d };
-    scene.add(mesh);
-    state.world.npcs.push(mesh);
-    
-    // Добавляем точку на карту
-    const mapDot = document.createElement('div');
-    mapDot.className = 'map-dot';
-    mapDot.style.background = 'blue';
-    mapDot.style.left = (d.x + 500)/10 + '%';
-    mapDot.style.top = (d.z + 500)/10 + '%';
-    document.getElementById('minimap-content').appendChild(mapDot);
-});
-
-// --- ИГРОК ---
-const playerObj = new THREE.Object3D();
-playerObj.position.set(10, 2, 10);
-scene.add(playerObj);
-// Камера привязана к объекту игрока (логически)
-
-// ==========================================
-// 5. УПРАВЛЕНИЕ И ВЗАИМОДЕЙСТВИЕ
-// ==========================================
-const keys = {};
-window.addEventListener('keydown', (e) => {
-    if(state.flags.menuOpen && e.code === 'Escape') { ui.closeMenus(); return; }
-    keys[e.code] = true;
-    
-    if(!state.flags.menuOpen) {
-        if(e.code === 'KeyE') interact();
-        if(e.code === 'KeyV') toggleVehicle();
-        if(e.code === 'KeyI') ui.openMenu('inventory');
-        if(e.code === 'KeyB') ui.openMenu('build');
-        if(e.code === 'KeyC') state.player.thirdPerson = !state.player.thirdPerson;
-        if(e.code === 'KeyL') buyLand();
-    }
-});
-window.addEventListener('keyup', (e) => keys[e.code] = false);
-
-// Мышь
-let euler = new THREE.Euler(0, 0, 0, 'YXZ');
-document.addEventListener('mousemove', (e) => {
-    if (document.pointerLockElement && !state.flags.menuOpen) {
-        euler.y -= e.movementX * 0.002;
-        euler.x -= e.movementY * 0.002;
-        euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
-        camera.quaternion.setFromEuler(euler);
-    }
-});
-document.addEventListener('click', () => {
-    if(!state.flags.menuOpen) document.body.requestPointerLock();
-});
-
-// Рейкастер для взаимодействия
-const raycaster = new THREE.Raycaster();
-function checkInteraction() {
-    raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-    const objects = [...state.world.npcs, ...state.world.resources, ...state.world.buildings];
-    const intersects = raycaster.intersectObjects(objects);
-    
-    const msg = document.getElementById('interaction-msg');
-    state.flags.nearNPC = null;
-    state.flags.nearResource = null;
-
-    if(intersects.length > 0 && intersects[0].distance < 4) {
-        const obj = intersects[0].object;
-        msg.style.display = 'block';
-        if(obj.userData.type === 'npc') {
-            msg.innerText = `[E] Говорить: ${obj.userData.data.name}`;
-            state.flags.nearNPC = obj.userData.data;
-        } else if (obj.userData.type === 'resource') {
-            msg.innerText = `[E] Собрать ${obj.userData.resType}`;
-            state.flags.nearResource = obj;
-        } else {
-             msg.style.display = 'none';
-        }
-    } else {
-        msg.style.display = 'none';
-    }
-}
-
-function interact() {
-    if(state.flags.nearNPC) {
-        ui.showDialog(state.flags.nearNPC);
-    } else if (state.flags.nearResource) {
-        harvest(state.flags.nearResource);
-    }
-}
-
-function harvest(obj) {
-    const type = obj.userData.resType;
-    let amount = 1;
-    let bonus = 1;
-    
-    // Бонусы профессии
-    if(state.player.job === 'Охотник' || state.player.job === 'Президент') bonus = 1.5;
-    
-    // Инвентарь
-    state.player.inventory[type] = (state.player.inventory[type] || 0) + Math.floor(amount * bonus);
-    state.player.money += (type==='gold'? 50 : (type==='iron'? 20 : 10)) * bonus;
-    state.player.stamina -= 5;
-    
-    // Удаление
-    scene.remove(obj);
-    state.world.resources = state.world.resources.filter(r => r !== obj);
-    
-    ui.notify(`Получено: ${type} x${Math.floor(amount*bonus)}`);
-}
-
-function toggleVehicle() {
-    if(state.player.vehicle) {
-        state.player.vehicle = null;
-        ui.notify("Вы пошли пешком");
-    } else {
-        // Проверка зоны
-        if(playerObj.position.y < 0) state.player.vehicle = 'boat';
-        else state.player.vehicle = 'horse';
-        ui.notify(`Транспорт: ${state.player.vehicle === 'boat' ? 'Лодка' : 'Лошадь'}`);
-    }
-}
-
-function buyLand() {
-    if(state.player.money >= 200) {
-        state.player.money -= 200;
-        state.player.lands++;
-        ui.notify("Участок куплен! (-200💰)");
-    } else {
-        ui.notify("Недостаточно денег (200💰)");
-    }
-}
-
-// ==========================================
-// 6. UI И ЛОГИКА МЕНЮ
-// ==========================================
-const ui = {
-    notify: (text) => {
-        const div = document.createElement('div');
-        div.className = 'notify'; div.innerText = text;
-        document.getElementById('notification-area').appendChild(div);
-        setTimeout(() => div.remove(), 4000);
-    },
-    openMenu: (id) => {
-        document.exitPointerLock();
-        state.flags.menuOpen = true;
-        document.querySelectorAll('.menu-modal').forEach(m => m.style.display = 'none');
-        document.getElementById(id + '-menu').style.display = 'block';
-        if(id === 'inventory') ui.renderInventory();
-        if(id === 'build') ui.renderBuild();
-    },
-    closeMenus: () => {
-        state.flags.menuOpen = false;
-        document.querySelectorAll('.menu-modal').forEach(m => m.style.display = 'none');
-        document.body.requestPointerLock();
-    },
-    renderInventory: () => {
-        const list = document.getElementById('inv-list');
-        list.innerHTML = '';
-        for(let k in state.player.inventory) {
-            if(state.player.inventory[k] > 0) {
-                list.innerHTML += `<div>${k}: ${state.player.inventory[k]}</div>`;
+        // Generate modern structures
+        function generateModernStructures() {
+            // Skyscrapers
+            for (let i = 0; i < 4; i++) {
+                const buildingX = 35 + i * 10;
+                const buildingZ = 10;
+                const height = 25 + Math.floor(Math.random() * 10);
+                
+                // Building structure
+                for (let x = buildingX; x < buildingX + 8; x++) {
+                    for (let z = buildingZ; z < buildingZ + 8; z++) {
+                        for (let y = 17; y < height; y++) {
+                            // Alternate between concrete and glass
+                            const blockType = (x === buildingX || x === buildingX + 7 || z === buildingZ || z === buildingZ + 7 || y % 3 === 0) ? 5 : 6;
+                            setBlock(x, y, z, blockType);
+                        }
+                    }
+                }
+                
+                // Neon lights on top
+                for (let x = buildingX; x < buildingX + 8; x++) {
+                    setBlock(x, height, buildingZ, 7); // Gold (simulating neon)
+                    setBlock(x, height, buildingZ + 7, 7);
+                }
+            }
+            
+            // Roads
+            for (let x = MEDIEVAL_BOUNDARY; x < WORLD_WIDTH; x++) {
+                for (let z = 0; z < WORLD_DEPTH; z++) {
+                    // Create road pattern
+                    if (z % 20 < 10) {
+                        setBlock(x, 16, z, 4); // Asphalt
+                        
+                        // Road markings
+                        if (z % 5 === 0 && x % 2 === 0) {
+                            setBlock(x, 16.1, z, 5); // Concrete markings
+                        }
+                    }
+                }
             }
         }
-    },
-    renderBuild: () => {
-        const list = document.getElementById('build-list');
-        const builds = [
-            {n:'Дом', w:10, s:5, c:300}, {n:'Ферма', w:15, s:3, c:400},
-            {n:'Магазин', w:20, s:10, c:600}, {n:'Склад', w:25, s:15, c:800}
-        ];
-        list.innerHTML = builds.map(b => 
-            `<button class="btn" onclick="buildItem('${b.n}', ${b.w}, ${b.s}, ${b.c})">
-             ${b.n} (🪵${b.w} 🪨${b.s} 💰${b.c})</button>`
-        ).join('');
-    },
-    showDialog: (npc) => {
-        ui.openMenu('dialog');
-        document.getElementById('npc-name').innerText = npc.name;
-        const opts = document.getElementById('npc-options');
-        opts.innerHTML = '';
         
-        if(npc.role === 'mayor') {
-            document.getElementById('npc-text').innerText = "Приветствую в нашем городе! Кем хочешь работать?";
-            ['Фермер','Строитель','Торговец','Охотник','Президент'].forEach(job => {
-                opts.innerHTML += `<button class="btn" onclick="setJob('${job}')">Стать: ${job} ${job==='Президент'?'(500💰)':''}</button>`;
+        // Generate NPCs
+        function generateNPCs() {
+            // Medieval NPCs
+            const medievalTrader = createNPC(15, 18, 25, 'Medieval Merchant', 'medieval');
+            gameState.traders.push(medievalTrader);
+            
+            const medievalBlacksmith = createNPC(8, 18, 32, 'Blacksmith', 'medieval');
+            gameState.traders.push(medievalBlacksmith);
+            
+            // Modern NPCs
+            const modernTrader = createNPC(40, 18, 25, 'Modern Trader', 'modern');
+            gameState.traders.push(modernTrader);
+            
+            const techMerchant = createNPC(45, 18, 35, 'Tech Merchant', 'modern');
+            gameState.traders.push(techMerchant);
+        }
+        
+        // Create an NPC
+        function createNPC(x, y, z, name, type) {
+            const npcGroup = new THREE.Group();
+            
+            // Body
+            const bodyGeometry = new THREE.BoxGeometry(0.6, 1, 0.6);
+            const bodyColor = type === 'medieval' ? 0x8b4513 : 0x1e90ff;
+            const bodyMaterial = new THREE.MeshPhongMaterial({ color: bodyColor });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.5;
+            npcGroup.add(body);
+            
+            // Head
+            const headGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const headColor = type === 'medieval' ? 0xffdab9 : 0xf0f8ff;
+            const headMaterial = new THREE.MeshPhongMaterial({ color: headColor });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.4;
+            npcGroup.add(head);
+            
+            // NPC identifier
+            const identifierGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const identifierColor = type === 'medieval' ? 0xff0000 : 0x00ff00;
+            const identifierMaterial = new THREE.MeshPhongMaterial({ color: identifierColor });
+            const identifier = new THREE.Mesh(identifierGeometry, identifierMaterial);
+            identifier.position.y = 2.2;
+            npcGroup.add(identifier);
+            
+            // Position NPC
+            npcGroup.position.set(x + 0.5, y, z + 0.5);
+            scene.add(npcGroup);
+            
+            // Add NPC data
+            npcGroup.userData = {
+                isNPC: true,
+                name: name,
+                type: type,
+                interactionRange: 3
+            };
+            
+            return npcGroup;
+        }
+        
+        // Set a block at a specific position
+        function setBlock(x, y, z, type) {
+            const key = `${x},${y},${z}`;
+            
+            // Remove existing block at this position
+            if (world.has(key)) {
+                scene.remove(world.get(key).mesh);
+                world.delete(key);
+            }
+            
+            // Don't create air blocks
+            if (type === 0) return;
+            
+            const blockData = BLOCK_TYPES[type];
+            if (!blockData) return;
+            
+            // Create block mesh
+            const geometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: blockData.color,
+                transparent: blockData.transparent || false,
+                opacity: blockData.opacity || 1
             });
-            opts.innerHTML += `<hr><button class="btn" onclick="getQuest()">Взять квест</button>`;
-        } else if (npc.role === 'merchant') {
-             document.getElementById('npc-text').innerText = "Лучшие товары!";
-             opts.innerHTML += `<button class="btn" onclick="buyItem('food', 15)">Хлеб (15💰)</button>`;
-             opts.innerHTML += `<button class="btn" onclick="buyItem('medkit', 60)">Аптечка (60💰)</button>`;
-        } else if (npc.role === 'doctor') {
-            document.getElementById('npc-text').innerText = "Болит что-то?";
-            opts.innerHTML += `<button class="btn" onclick="healPlayer(40)">Лечение (40💰)</button>`;
-        } else {
-             document.getElementById('npc-text').innerText = "Хороший денек, да?";
+            
+            const block = new THREE.Mesh(geometry, material);
+            block.position.set(x + 0.5, y + 0.5, z + 0.5);
+            block.castShadow = true;
+            block.receiveShadow = true;
+            
+            // Store block data
+            block.userData = { type: type, x: x, y: y, z: z };
+            
+            // Add to scene and world map
+            scene.add(block);
+            world.set(key, { type: type, mesh: block });
         }
-    }
-};
-
-window.setJob = (job) => {
-    if(job === 'Президент') {
-        if(state.player.money >= 500) { state.player.money -= 500; state.player.job = job; }
-        else ui.notify("Мало денег!");
-    } else {
-        state.player.job = job;
-    }
-    ui.closeMenus();
-    ui.notify("Профессия: " + state.player.job);
-};
-
-window.buyItem = (item, cost) => {
-    let finalCost = cost;
-    if(state.player.job === 'Торговец' || state.player.job === 'Президент') finalCost *= 0.8;
-    
-    if(state.player.money >= finalCost) {
-        state.player.money -= finalCost;
-        if(item === 'food') state.player.inventory.food++;
-        if(item === 'medkit') state.player.inventory.medkit++;
-        ui.notify(`Куплено: ${item}`);
-    } else ui.notify("Нет денег!");
-};
-
-window.healPlayer = (cost) => {
-    if(state.player.money >= cost) {
-        state.player.money -= cost;
-        state.player.hp = Math.min(100, state.player.hp + 50);
-        ui.notify("Здоровье восстановлено");
-    }
-};
-
-window.buildItem = (type, w, s, c) => {
-    if(state.player.job !== 'Строитель' && state.player.job !== 'Президент') {
-        ui.notify("Вы не строитель!"); return;
-    }
-    if(state.player.inventory.wood >= w && state.player.inventory.stone >= s && state.player.money >= c) {
-        state.player.inventory.wood -= w;
-        state.player.inventory.stone -= s;
-        state.player.money -= c;
         
-        // Стройка перед игроком
-        const pos = playerObj.position.clone();
-        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).multiplyScalar(10);
-        const house = createHouse(pos.x + dir.x, pos.z + dir.z);
-        scene.add(house);
-        ui.closeMenus();
-        ui.notify("Построено!");
-    } else {
-        ui.notify("Не хватает ресурсов");
-    }
-};
-
-window.getQuest = () => {
-    ui.notify("Квест получен: Победить 5 бандитов");
-};
-
-// ==========================================
-// 7. ИГРОВОЙ ЦИКЛ (PHYSICS & LOGIC)
-// ==========================================
-const clock = new THREE.Clock();
-
-function updateStats(delta) {
-    // Голод
-    state.player.food -= delta * 0.5; // 3 ед в час (час = 6 сек)
-    if(state.player.food <= 0) { state.player.food = 0; state.player.hp -= delta; }
-    if(state.player.hp <= 0) { state.player.hp = 100; playerObj.position.set(0,5,0); ui.notify("ВЫ ПОГИБЛИ. Возрождение..."); }
-    
-    // UI Update
-    document.getElementById('val-hp').innerText = Math.floor(state.player.hp);
-    document.getElementById('hp-fill').style.width = state.player.hp + '%';
-    document.getElementById('val-food').innerText = Math.floor(state.player.food);
-    document.getElementById('food-fill').style.width = state.player.food + '%';
-    document.getElementById('val-money').innerText = Math.floor(state.player.money);
-    document.getElementById('val-job').innerText = state.player.job;
-    document.getElementById('val-land').innerText = state.player.lands;
-    
-    // Время
-    state.world.time += delta * 0.2; // 1 игровой час = 5 реальных секунд
-    if(state.world.time >= 24) {
-        state.world.time = 0; 
-        state.world.day++;
-        state.world.taxesPaid = false;
-        // Вор (30% шанс)
-        if(Math.random() < 0.3) {
-            const stolen = Math.floor(Math.random()*50)+50;
-            state.player.money = Math.max(0, state.player.money - stolen);
-            ui.notify(`Вор украл ${stolen} монет!`);
+        // Remove a block
+        function removeBlock(x, y, z) {
+            setBlock(x, y, z, 0);
+            
+            // Create breaking particles
+            createParticles(x + 0.5, y + 0.5, z + 0.5, BLOCK_TYPES[getBlock(x, y, z)]?.color || 0xffffff);
         }
-    }
-    
-    // Смена дня и ночи
-    const sunY = Math.sin((state.world.time - 6) / 24 * Math.PI * 2);
-    sun.position.y = sunY * 200;
-    sun.position.x = Math.cos((state.world.time - 6) / 24 * Math.PI * 2) * 200;
-    sun.intensity = Math.max(0, sunY * 1.5);
-    scene.background.setHSL(0.6, 0.5, Math.max(0.05, sunY * 0.5));
-    
-    document.getElementById('game-time').innerText = `${Math.floor(state.world.time)}:00`;
-    document.getElementById('game-date').innerText = `День ${state.world.day} (${seasons[state.world.season]})`;
-    
-    // Налоги
-    if(Math.floor(state.world.time) === 12 && !state.world.taxesPaid) {
-        const tax = state.player.lands * 5;
-        if(tax > 0) {
-            state.player.money -= tax;
-            ui.notify(`Уплачен налог: ${tax}💰`);
+        
+        // Get block type at position
+        function getBlock(x, y, z) {
+            const key = `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`;
+            return world.has(key) ? world.get(key).type : 0;
         }
-        state.world.taxesPaid = true;
-    }
-}
-
-function updatePlayer(delta) {
-    const p = state.player;
-    const moveSpeed = p.vehicle ? (p.vehicle==='horse'?20 : (p.vehicle==='boat'?15:10)) : (keys['ShiftLeft']? 12 : 6);
-    
-    const velocity = new THREE.Vector3();
-    const dir = new THREE.Vector3();
-    
-    if(keys['KeyW']) dir.z = -1;
-    if(keys['KeyS']) dir.z = 1;
-    if(keys['KeyA']) dir.x = -1;
-    if(keys['KeyD']) dir.x = 1;
-    
-    if(dir.length() > 0) dir.normalize().multiplyScalar(moveSpeed * delta);
-    
-    // Поворот направления относительно камеры
-    dir.applyEuler(new THREE.Euler(0, euler.y, 0));
-    playerObj.position.add(dir);
-    
-    // Гравитация и земля
-    // Простая проверка высоты (для примера)
-    // В реальности нужен raycast вниз
-    const terrainHeight = 0; // упрощено, реальная высота нужна через Raycaster
-    if(playerObj.position.y > terrainHeight + 1.6) {
-        playerObj.position.y -= 9.8 * delta;
-    } else {
-        playerObj.position.y = terrainHeight + 1.6;
-        if(keys['Space']) playerObj.position.y += 2; // Прыжок
-    }
-    
-    // Камера
-    if(p.thirdPerson) {
-        const offset = new THREE.Vector3(0, 3, 6).applyEuler(new THREE.Euler(0, euler.y, 0));
-        camera.position.copy(playerObj.position).add(offset);
-        camera.lookAt(playerObj.position);
-    } else {
-        camera.position.copy(playerObj.position);
-        camera.quaternion.setFromEuler(euler);
-    }
-    
-    // Обновление точки на карте
-    const dot = document.getElementById('player-dot-map');
-    if(!dot) {
-        const d = document.createElement('div'); d.id='player-dot-map'; 
-        d.className = 'map-dot'; d.style.background='lime';
-        document.getElementById('minimap-content').appendChild(d);
-    }
-    const mapX = (playerObj.position.x + 500) / 10;
-    const mapY = (playerObj.position.z + 500) / 10;
-    document.getElementById('player-dot-map').style.left = mapX+'%';
-    document.getElementById('player-dot-map').style.top = mapY+'%';
-    
-    // Обновление локации
-    const z = playerObj.position.z;
-    const x = playerObj.position.x;
-    let loc = "Дикая местность";
-    if(x > 10 && x < 100 && z > 10 && z < 100) loc = "Деревня";
-    if(x < -100 && z < -100) loc = "Город";
-    if(x > 150) loc = "Горы";
-    if(z < -200) loc = "Море";
-    if(x > -130 && x < -50 && z > -130 && z < -50) loc = "Логово бандитов";
-    document.getElementById('game-loc').innerText = loc;
-}
-
-function updateAI(delta) {
-    state.world.enemies.forEach(en => {
-        const dist = en.position.distanceTo(playerObj.position);
-        if(dist < 30) {
-            en.lookAt(playerObj.position);
-            en.translateZ(5 * delta); // Скорость бандита
-            if(dist < 2) {
-                state.player.hp -= 10 * delta;
-                ui.notify("Вас атакуют!");
+        
+        // Create particles for block breaking
+        function createParticles(x, y, z, color) {
+            const particleCount = 10;
+            const particles = new THREE.Group();
+            
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+                const material = new THREE.MeshBasicMaterial({ color: color });
+                const particle = new THREE.Mesh(geometry, material);
+                
+                particle.position.set(x, y, z);
+                particle.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    Math.random() * 0.2,
+                    (Math.random() - 0.5) * 0.2
+                );
+                particle.userData.life = 1.0;
+                
+                particles.add(particle);
+            }
+            
+            scene.add(particles);
+            
+            // Animate particles
+            function animateParticles() {
+                let allDead = true;
+                
+                particles.children.forEach(particle => {
+                    particle.userData.life -= 0.02;
+                    if (particle.userData.life > 0) {
+                        allDead = false;
+                        particle.position.add(particle.userData.velocity);
+                        particle.userData.velocity.y -= 0.01; // Gravity
+                        particle.material.opacity = particle.userData.life;
+                    }
+                });
+                
+                if (allDead) {
+                    scene.remove(particles);
+                } else {
+                    requestAnimationFrame(animateParticles);
+                }
+            }
+            
+            animateParticles();
+        }
+        
+        // Setup lighting
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            // Directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+            
+            // Modern area lights (neon effect)
+            for (let x = MEDIEVAL_BOUNDARY; x < WORLD_WIDTH; x += 10) {
+                for (let z = 0; z < WORLD_DEPTH; z += 10) {
+                    const pointLight = new THREE.PointLight(0x00ffff, 0.5, 20);
+                    pointLight.position.set(x, 25, z);
+                    scene.add(pointLight);
+                    
+                    // Add a glow effect
+                    const lightSphere = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.5, 16, 16),
+                        new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3 })
+                    );
+                    lightSphere.position.set(x, 25, z);
+                    scene.add(lightSphere);
+                }
             }
         }
-    });
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-    const delta = clock.getDelta();
-    
-    if(!state.flags.menuOpen) {
-        updatePlayer(delta);
-        updateStats(delta);
-        updateAI(delta);
-        checkInteraction();
-    }
-    
-    renderer.render(scene, camera);
-}
-
-animate();
-
-</script>
+        
+        // Create hotbar UI
+        function createHotbarUI() {
+            const hotbar = document.getElementById('hotbar');
+            hotbar.innerHTML = '';
+            
+            gameState.hotbarItems.forEach((item, index) => {
+                const slot = document.createElement('div');
+                slot.className = `hotbar-slot ${index === gameState.selectedHotbarIndex ? 'active' : ''}`;
+                slot.dataset.index = index;
+                
+                slot.innerHTML = `
+                    <div class="hotbar-icon">${item.icon}</div>
+                    <div class="hotbar-label">${item.name}</div>
+                `;
+                
+                slot.addEventListener('click', () => {
+                    selectHotbarItem(index);
+                });
+                
+                hotbar.appendChild(slot);
+            });
+        }
+        
+        // Select hotbar item
+        function selectHotbarItem(index) {
+            gameState.selectedHotbarIndex = index;
+            
+            // Update UI
+            document.querySelectorAll('.hotbar-slot').forEach((slot, i) => {
+                if (i === index) {
+                    slot.classList.add('active');
+                } else {
+                    slot.classList.remove('active');
+                }
+            });
+            
+            showMessage(`Selected: ${gameState.hotbarItems[index].name}`);
+        }
+        
+        // Create trade UI
+        function createTradeUI() {
+            // Buy items
+            const buyItems = [
+                { name: 'Health Potion', icon: '❤️', price: 20, type: 'potion', effect: 'heal' },
+                { name: 'Stone Block', icon: '🪨', price: 5, type: 'block', blockId: 2 },
+                { name: 'Wood Block', icon: '🪵', price: 3, type: 'block', blockId: 3 },
+                { name: 'Glass Block', icon: '🔷', price: 8, type: 'block', blockId: 6 }
+            ];
+            
+            const buyContainer = document.getElementById('buyItems');
+            buyContainer.innerHTML = '';
+            
+            buyItems.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'trade-item';
+                itemElement.innerHTML = `
+                    <div class="item-icon">${item.icon}</div>
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">$${item.price}</div>
+                `;
+                
+                itemElement.addEventListener('click', () => buyItem(item));
+                buyContainer.appendChild(itemElement);
+            });
+            
+            // Sell items
+            const sellItems = [
+                { name: 'Gold Ore', icon: '🟨', price: 50, type: 'ore', oreType: 'gold' },
+                { name: 'Diamond Ore', icon: '💎', price: 100, type: 'ore', oreType: 'diamond' }
+            ];
+            
+            const sellContainer = document.getElementById('sellItems');
+            sellContainer.innerHTML = '';
+            
+            sellItems.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'trade-item';
+                itemElement.innerHTML = `
+                    <div class="item-icon">${item.icon}</div>
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">$${item.price}</div>
+                `;
+                
+                itemElement.addEventListener('click', () => sellItem(item));
+                sellContainer.appendChild(itemElement);
+            });
+            
+            // Close button
+            document.getElementById('closeTrade').addEventListener('click', () => {
+                document.getElementById('tradeModal').style.display = 'none';
+                controls.lock();
+            });
+        }
+        
+        // Buy item from trader
+        function buyItem(item) {
+            if (gameState.money >= item.price) {
+                gameState.money -= item.price;
+                
+                if (item.type === 'potion') {
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + 30);
+                    updateUI();
+                    showMessage(`Bought ${item.name}! Health restored.`);
+                } else if (item.type === 'block') {
+                    // Add block to inventory (simplified - just allow placing)
+                    showMessage(`Bought ${item.name}! You can now place this block.`);
+                }
+                
+                updateTradeUI();
+            } else {
+                showMessage('Not enough money!');
+            }
+        }
+        
+        // Sell item to trader
+        function sellItem(item) {
+            if (item.oreType === 'gold' && gameState.goldOre > 0) {
+                gameState.goldOre--;
+                gameState.money += item.price;
+                showMessage(`Sold Gold Ore for $${item.price}!`);
+            } else if (item.oreType === 'diamond' && gameState.diamondOre > 0) {
+                gameState.diamondOre--;
+                gameState.money += item.price;
+                showMessage(`Sold Diamond Ore for $${item.price}!`);
+            } else {
+                showMessage(`No ${item.name} to sell!`);
+            }
+            
+            updateUI();
+            updateTradeUI();
+        }
+        
+        // Update trade UI with current values
+        function updateTradeUI() {
+            document.getElementById('tradeMoney').textContent = gameState.money;
+            document.getElementById('tradeGold').textContent = gameState.goldOre;
+            document.getElementById('tradeDiamond').textContent = gameState.diamondOre;
+        }
+        
+        // Show message to player
+        function showMessage(text, duration = 3000) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = text;
+            messageElement.style.opacity = '1';
+            
+            setTimeout(() => {
+                messageElement.style.opacity = '0';
+            }, duration);
+        }
+        
+        // Update UI
+        function updateUI() {
+            // Update health
+            const healthPercent = (gameState.health / gameState.maxHealth) * 100;
+            document.getElementById('healthFill').style.width = `${healthPercent}%`;
+            
+            // Update hunger
+            const hungerPercent = (gameState.hunger / gameState.maxHunger) * 100;
+            document.getElementById('hungerFill').style.width = `${hungerPercent}%`;
+            
+            // Update money
+            document.getElementById('moneyValue').textContent = gameState.money;
+            
+            // Update ores
+            document.getElementById('oresValue').textContent = `Gold: ${gameState.goldOre}, Diamond: ${gameState.diamondOre}`;
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Pointer lock change
+            document.addEventListener('pointerlockchange', onPointerLockChange, false);
+            document.addEventListener('mozpointerlockchange', onPointerLockChange, false);
+            
+            // Start button
+            document.getElementById('startBtn').addEventListener('click', () => {
+                document.getElementById('pauseScreen').style.display = 'none';
+                controls.lock();
+                gameState.paused = false;
+            });
+            
+            // Keyboard events
+            document.addEventListener('keydown', onKeyDown, false);
+            document.addEventListener('keyup', onKeyUp, false);
+            
+            // Mouse events
+            document.addEventListener('mousedown', onMouseDown, false);
+            
+            // Window resize
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Prevent context menu on right click
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        
+        // Pointer lock change handler
+        function onPointerLockChange() {
+            if (document.pointerLockElement === document.body ||
+                document.mozPointerLockElement === document.body) {
+                controls.isLocked = true;
+            } else {
+                controls.isLocked = false;
+                
+                // Show pause screen if game was running
+                if (!gameState.paused) {
+                    document.getElementById('pauseScreen').style.display = 'flex';
+                    document.getElementById('pauseTitle').textContent = 'GAME PAUSED';
+                    document.getElementById('pauseSubtitle').innerHTML = 'Click the game to resume';
+                    document.getElementById('startBtn').textContent = 'RESUME';
+                    gameState.paused = true;
+                }
+            }
+        }
+        
+        // Key down handler
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'KeyW':
+                    moveForward = true;
+                    break;
+                case 'KeyA':
+                    moveLeft = true;
+                    break;
+                case 'KeyS':
+                    moveBackward = true;
+                    break;
+                case 'KeyD':
+                    moveRight = true;
+                    break;
+                case 'Space':
+                    if (canJump) {
+                        velocity.y = 0.15;
+                        canJump = false;
+                    }
+                    break;
+                case 'ShiftLeft':
+                    isRunning = true;
+                    break;
+                case 'KeyE':
+                    interactWithNPC();
+                    break;
+                case 'Digit1':
+                    selectHotbarItem(0);
+                    break;
+                case 'Digit2':
+                    selectHotbarItem(1);
+                    break;
+                case 'Digit3':
+                    selectHotbarItem(2);
+                    break;
+                case 'Digit4':
+                    selectHotbarItem(3);
+                    break;
+                case 'Digit5':
+                    selectHotbarItem(4);
+                    break;
+                case 'Escape':
+                    if (controls.isLocked) {
+                        controls.unlock();
+                    }
+                    break;
+            }
+        }
+        
+        // Key up handler
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'KeyW':
+                    moveForward = false;
+                    break;
+                case 'KeyA':
+                    moveLeft = false;
+                    break;
+                case 'KeyS':
+                    moveBackward = false;
+                    break;
+                case 'KeyD':
+                    moveRight = false;
+                    break;
+                case 'ShiftLeft':
+                    isRunning = false;
+                    break;
+            }
+        }
+        
+        // Mouse down handler
+        function onMouseDown(event) {
+            if (!controls.isLocked || gameState.paused) return;
+            
+            // Left click - mine/attack
+            if (event.button === 0) {
+                mineBlock();
+            }
+            // Right click - place block
+            else if (event.button === 2) {
+                placeBlock();
+            }
+        }
+        
+        // Mine block
+        function mineBlock() {
+            // Set up raycaster from camera
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check for intersections
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const block = intersect.object;
+                
+                // Check if it's a block
+                if (block.userData.type !== undefined) {
+                    const { x, y, z, type } = block.userData;
+                    
+                    // Remove block
+                    removeBlock(x, y, z);
+                    
+                    // Add to inventory if it's an ore
+                    if (type === 7) { // Gold ore
+                        gameState.goldOre++;
+                        showMessage('Mined Gold Ore!');
+                    } else if (type === 8) { // Diamond ore
+                        gameState.diamondOre++;
+                        showMessage('Mined Diamond Ore!');
+                    }
+                    
+                    // Update UI
+                    updateUI();
+                    
+                    // Consume hunger
+                    gameState.hunger = Math.max(0, gameState.hunger - 1);
+                    if (gameState.hunger === 0) {
+                        gameState.health = Math.max(0, gameState.health - 1);
+                    }
+                    updateUI();
+                }
+            }
+        }
+        
+        // Place block
+        function placeBlock() {
+            const selectedItem = gameState.hotbarItems[gameState.selectedHotbarIndex];
+            
+            // Check if selected item is a block
+            if (selectedItem.type !== 'block') {
+                showMessage(`Can't place ${selectedItem.name}!`);
+                return;
+            }
+            
+            // Set up raycaster from camera
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check for intersections
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const block = intersect.object;
+                
+                // Check if it's a block
+                if (block.userData.type !== undefined) {
+                    const { x, y, z } = block.userData;
+                    
+                    // Calculate placement position (adjacent to clicked face)
+                    const normal = intersect.face.normal;
+                    const placeX = x + Math.round(normal.x);
+                    const placeY = y + Math.round(normal.y);
+                    const placeZ = z + Math.round(normal.z);
+                    
+                    // Check if position is empty
+                    if (getBlock(placeX, placeY, placeZ) === 0) {
+                        // Place block
+                        setBlock(placeX, placeY, placeZ, selectedItem.blockId);
+                        showMessage(`Placed ${selectedItem.name} block!`);
+                        
+                        // Consume hunger
+                        gameState.hunger = Math.max(0, gameState.hunger - 0.5);
+                        updateUI();
+                    }
+                }
+            }
+        }
+        
+        // Interact with NPC
+        function interactWithNPC() {
+            // Set up raycaster from camera
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check for intersections
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                let object = intersect.object;
+                
+                // Traverse up to find parent with NPC data
+                while (object && !object.userData.isNPC) {
+                    object = object.parent;
+                }
+                
+                if (object && object.userData.isNPC) {
+                    // Open trade UI
+                    document.getElementById('traderName').textContent = object.userData.name;
+                    updateTradeUI();
+                    document.getElementById('tradeModal').style.display = 'block';
+                    controls.unlock();
+                    
+                    showMessage(`Trading with ${object.userData.name}`);
+                }
+            }
+        }
+        
+        // Window resize handler
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Game loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!gameState.paused && controls.isLocked) {
+                const delta = clock.getDelta();
+                
+                // Update velocity based on input
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 0.05 * delta * 10; // Gravity
+                
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+                
+                const speed = isRunning ? 0.2 : 0.1;
+                
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta * 10;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta * 10;
+                
+                // Move player with collision detection
+                controls.moveRight(-velocity.x);
+                controls.moveForward(-velocity.z);
+                
+                // Update Y position with simple collision
+                controls.getObject().position.y += velocity.y;
+                
+                // Check if player is on ground
+                const playerPos = controls.getObject().position;
+                const blockBelow = getBlock(Math.floor(playerPos.x), Math.floor(playerPos.y - 1), Math.floor(playerPos.z));
+                
+                if (playerPos.y < 1) {
+                    playerPos.y = 1;
+                    velocity.y = 0;
+                    canJump = true;
+                } else if (blockBelow !== 0 && playerPos.y <= Math.floor(playerPos.y) + 1.1) {
+                    playerPos.y = Math.floor(playerPos.y) + 1.1;
+                    velocity.y = 0;
+                    canJump = true;
+                }
+                
+                // Slowly regenerate hunger when not moving much
+                if (velocity.x === 0 && velocity.z === 0 && velocity.y === 0) {
+                    gameState.hunger = Math.min(gameState.maxHunger, gameState.hunger + 0.01);
+                }
+                
+                // Regenerate health when hunger is high
+                if (gameState.hunger > 70 && gameState.health < gameState.maxHealth) {
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + 0.02);
+                }
+                
+                // Update UI periodically
+                if (Math.random() < 0.05) {
+                    updateUI();
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Initialize the game when page loads
+        window.addEventListener('load', init);
+    </script>
 </body>
 </html>
