@@ -1,1 +1,804 @@
-<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Epoch Clash RPG</title>\n    <style>\n        body { margin: 0; }\n        canvas { display: block; }\n    </style>\n</head>\n<body>\n    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n    <script>\n        // Basic Three.js setup\n        const scene = new THREE.Scene();\n        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);\n        const renderer = new THREE.WebGLRenderer();\n        renderer.setSize(window.innerWidth, window.innerHeight);\n        document.body.appendChild(renderer.domElement);\n\n        // World generation: Medieval Zone & Modern City\n        function generateWorld() {\n            // TODO: Implement world generation logic here\n        }\n\n        // First-person controls\n        function setupControls() {\n            // TODO: Implement first-person controls logic here\n        }\n\n        // Inventory system\n        function setupInventory() {\n            // TODO: Implement inventory system logic here\n        }\n\n        // NPC trading\n        function setupNPCs() {\n            // TODO: Implement NPC trading logic here\n        }\n\n        function animate() {\n            requestAnimationFrame(animate);\n            // TODO: Update game state and render\n            renderer.render(scene, camera);\n        }\n\n        // Initialize the game\n        generateWorld();\n        setupControls();\n        setupInventory();\n        setupNPCs();\n        animate();\n    </script>\n</body>\n</html>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>RPG Open World: Village & City</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        
+        /* UI LAYOUT */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; text-shadow: 1px 1px 2px black; }
+        
+        /* STATS (TOP LEFT) */
+        .stats-box { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; color: white; border: 2px solid #555; pointer-events: auto; }
+        .bar-wrap { width: 200px; height: 12px; background: #333; margin: 5px 0; border: 1px solid #fff; position: relative; }
+        .bar-fill { height: 100%; transition: width 0.3s; }
+        #hp-fill { background: #e74c3c; }
+        #food-fill { background: #f39c12; }
+        #stamina-fill { background: #2ecc71; }
+        .stat-text { font-size: 14px; margin-bottom: 5px; font-weight: bold; }
+        
+        /* INFO (TOP RIGHT) */
+        .info-box { position: absolute; top: 10px; right: 10px; text-align: right; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; }
+        
+        /* MINIMAP (BOTTOM RIGHT) */
+        #minimap-container { position: absolute; bottom: 20px; right: 20px; width: 200px; height: 200px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #222; }
+        #minimap-content { width: 100%; height: 100%; position: relative; }
+        .map-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; transform: translate(-50%, -50%); }
+        
+        /* INTERACTION & CROSSHAIR */
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 5px black; }
+        #interaction-msg { position: absolute; top: 55%; left: 50%; transform: translate(-50%, 0); color: yellow; font-size: 18px; font-weight: bold; display: none; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; }
+        
+        /* MENUS (CENTER) */
+        .menu-modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(20, 20, 20, 0.95); color: white; padding: 20px; border: 2px solid gold; border-radius: 10px; pointer-events: auto; min-width: 300px; max-height: 80vh; overflow-y: auto; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .menu-modal h2 { margin-top: 0; color: gold; border-bottom: 1px solid gray; padding-bottom: 10px; }
+        .btn { display: block; width: 100%; padding: 10px; margin: 5px 0; background: #444; color: white; border: 1px solid #666; cursor: pointer; text-align: left; }
+        .btn:hover { background: #666; border-color: white; }
+        
+        /* CONTROLS HINT */
+        #controls-hint { position: absolute; bottom: 10px; left: 10px; color: rgba(255,255,255,0.7); font-size: 12px; }
+
+        /* NOTIFICATIONS */
+        #notification-area { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); text-align: center; }
+        .notify { background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 5px; margin-bottom: 5px; animation: fadeOut 4s forwards; border: 1px solid gold; }
+        @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; display: none; } }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div class="stats-box">
+        <div class="stat-text">❤️ Здоровье <span id="val-hp">100</span>%</div>
+        <div class="bar-wrap"><div id="hp-fill" class="bar-fill" style="width: 100%"></div></div>
+        
+        <div class="stat-text">🍖 Голод <span id="val-food">100</span>%</div>
+        <div class="bar-wrap"><div id="food-fill" class="bar-fill" style="width: 100%"></div></div>
+        
+        <div class="stat-text">⚡ Выносливость <span id="val-stam">100</span>%</div>
+        <div class="bar-wrap"><div id="stamina-fill" class="bar-fill" style="width: 100%"></div></div>
+        
+        <div style="margin-top: 10px; border-top: 1px solid #555; padding-top:5px;">
+            <div>💰 Деньги: <span id="val-money" style="color: gold">500</span></div>
+            <div>👷 Профессия: <span id="val-job" style="color: cyan">Безработный</span></div>
+            <div>📜 Земель: <span id="val-land">0</span></div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <div id="game-time" style="font-size: 24px; font-weight: bold;">12:00</div>
+        <div id="game-date">День 1 (Весна)</div>
+        <div id="game-loc">Дикая местность</div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="interaction-msg">Нажмите [E]</div>
+
+    <div id="minimap-container">
+        <div id="minimap-content">
+            </div>
+    </div>
+
+    <div id="inventory-menu" class="menu-modal">
+        <h2>🎒 Инвентарь</h2>
+        <div id="inv-list">Пусто</div>
+        <button class="btn" onclick="ui.closeMenus()">Закрыть (ESC)</button>
+    </div>
+
+    <div id="build-menu" class="menu-modal">
+        <h2>🏗️ Меню строительства</h2>
+        <div id="build-list"></div>
+        <button class="btn" onclick="ui.closeMenus()">Закрыть (ESC)</button>
+    </div>
+
+    <div id="dialog-menu" class="menu-modal">
+        <h2 id="npc-name">NPC</h2>
+        <p id="npc-text">Привет!</p>
+        <div id="npc-options"></div>
+        <button class="btn" onclick="ui.closeMenus()">Уйти</button>
+    </div>
+    
+    <div id="notification-area"></div>
+    
+    <div id="controls-hint">
+        WASD: Движение | Shift: Бег | Пробел: Прыжок | V: Транспорт<br>
+        E: Действие | B: Стройка | L: Купить землю | I: Инвентарь | C: Камера
+    </div>
+</div>
+
+<script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ==========================================
+// 1. КОНФИГУРАЦИЯ И СОСТОЯНИЕ
+// ==========================================
+const config = {
+    worldSize: 1000,
+    chunkSize: 50,
+    colors: {
+        grass: 0x41980a, water: 0x006994, mountain: 0x5a5a5a, snow: 0xffffff,
+        path: 0x8b5a2b, cityGround: 0x222222
+    }
+};
+
+const state = {
+    player: {
+        hp: 100, food: 100, stamina: 100, money: 500,
+        job: 'Безработный', lands: 0,
+        speed: 0, isRunning: false, isJumping: false, velocity: new THREE.Vector3(),
+        inventory: { wood: 0, stone: 0, iron: 0, gold_ore: 0, food: 5, medkit: 0 },
+        vehicle: null, // 'horse', 'boat', 'cart'
+        thirdPerson: false
+    },
+    world: {
+        time: 8.0, day: 1, season: 0, // 0: Spring, 1: Summer, 2: Autumn, 3: Winter
+        buildings: [],
+        resources: [],
+        npcs: [],
+        enemies: [],
+        taxesPaid: false
+    },
+    input: {},
+    flags: { menuOpen: false, nearNPC: null, nearResource: null }
+};
+
+const seasons = ['Весна', 'Лето', 'Осень', 'Зима'];
+
+// ==========================================
+// 2. ГРАФИКА И ТЕКСТУРЫ (ПРОЦЕДУРНЫЕ)
+// ==========================================
+function createProceduralTexture(type) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    if (type === 'grass') {
+        ctx.fillStyle = '#41980a'; ctx.fillRect(0,0,256,256);
+        for(let i=0; i<1000; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#3a8508' : '#4cb00c';
+            ctx.fillRect(Math.random()*256, Math.random()*256, 2, 2);
+        }
+    } else if (type === 'brick') {
+        ctx.fillStyle = '#8b4513'; ctx.fillRect(0,0,256,256);
+        ctx.strokeStyle = '#65320e'; ctx.lineWidth = 2;
+        for(let y=0; y<256; y+=32) {
+            for(let x=0; x<256; x+=64) {
+                ctx.strokeRect(x + (y%64===0?0:32), y, 64, 32);
+            }
+        }
+    } else if (type === 'wood') {
+        ctx.fillStyle = '#6d4c41'; ctx.fillRect(0,0,256,256);
+        ctx.strokeStyle = '#4e342e';
+        for(let i=0; i<50; i++) {
+            ctx.beginPath(); ctx.moveTo(0, Math.random()*256); ctx.lineTo(256, Math.random()*256); ctx.stroke();
+        }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+}
+
+const textures = {
+    grass: createProceduralTexture('grass'),
+    brick: createProceduralTexture('brick'),
+    wood: createProceduralTexture('wood')
+};
+
+// ==========================================
+// 3. ИНИЦИАЛИЗАЦИЯ THREE.JS
+// ==========================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.0015);
+
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// СВЕТ
+const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Soft white
+scene.add(ambientLight);
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(100, 200, 100);
+sun.castShadow = true;
+sun.shadow.camera.left = -200; sun.shadow.camera.right = 200;
+sun.shadow.camera.top = 200; sun.shadow.camera.bottom = -200;
+sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+scene.add(sun);
+
+// ==========================================
+// 4. ГЕНЕРАЦИЯ МИРА
+// ==========================================
+const geometryStore = {
+    box: new THREE.BoxGeometry(1,1,1),
+    sphere: new THREE.SphereGeometry(1, 16, 16)
+};
+
+// --- ЗЕМЛЯ И ВОДА ---
+const groundGeo = new THREE.PlaneGeometry(2000, 2000, 64, 64);
+const groundMat = new THREE.MeshStandardMaterial({ map: textures.grass, roughness: 1 });
+textures.grass.repeat.set(100, 100);
+
+// Модификация высот для гор
+const posAttr = groundGeo.attributes.position;
+for(let i=0; i < posAttr.count; i++) {
+    const x = posAttr.getX(i);
+    const y = posAttr.getY(i);
+    // Горы справа (X > 150)
+    if(x > 180) {
+        const peak = Math.sin(x*0.02) * Math.cos(y*0.02) * 80 + 20;
+        posAttr.setZ(i, Math.max(0, peak));
+    }
+    // Река (Z около -120)
+    if(Math.abs(y - (-120)) < 20) {
+        posAttr.setZ(i, -5); 
+    }
+    // Море (X < -250)
+    if(y < -250) {
+        posAttr.setZ(i, -10);
+    }
+}
+groundGeo.computeVertexNormals();
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Вода
+const waterGeo = new THREE.PlaneGeometry(2000, 2000);
+const waterMat = new THREE.MeshStandardMaterial({ color: 0x00aaff, transparent: true, opacity: 0.7, roughness: 0.1 });
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.rotation.x = -Math.PI / 2;
+water.position.y = -2;
+scene.add(water);
+
+// --- ДЕРЕВНЯ (10-100, 10-100) ---
+const villageGroup = new THREE.Group();
+scene.add(villageGroup);
+
+function createHouse(x, z, type='house') {
+    const group = new THREE.Group();
+    group.position.set(x, 0, z);
+    
+    // Основа
+    const w = type==='shop'||type==='mayor'? 12 : 8;
+    const h = type==='skyscraper'? 40 : 6;
+    const d = w;
+    const color = type==='mayor'? 0xffffff : (type==='shop'? 0xcd853f : 0x8b4513);
+    
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ map: textures.brick, color: color }));
+    base.position.y = h/2;
+    base.castShadow = true; base.receiveShadow = true;
+    group.add(base);
+
+    if(type !== 'skyscraper') {
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(w*0.8, 5, 4), new THREE.MeshStandardMaterial({ color: 0x5c3a21 }));
+        roof.position.y = h + 2.5;
+        roof.rotation.y = Math.PI/4;
+        group.add(roof);
+        
+        // Окно (эмиссионное для ночи)
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0x555500 }));
+        win.position.set(0, h/2, d/2 + 0.1);
+        group.add(win);
+    } else {
+        // Окна небоскреба
+        for(let i=10; i<h; i+=5) {
+            const win = new THREE.Mesh(new THREE.PlaneGeometry(w-2, 2), new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x111133 }));
+            win.position.set(0, i, d/2+0.1);
+            group.add(win);
+        }
+    }
+    
+    // Коллайдер
+    const collider = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({visible:false}));
+    collider.position.copy(base.position);
+    collider.userData = { type: 'building', subType: type };
+    group.add(collider);
+    state.world.buildings.push(collider);
+
+    return group;
+}
+
+// Постройки деревни
+villageGroup.add(createHouse(50, 30, 'mayor')); // Мэрия
+villageGroup.add(createHouse(70, 55, 'shop')); // Магазин
+villageGroup.add(createHouse(30, 55, 'forge')); // Кузница
+villageGroup.add(createHouse(50, 75, 'hospital')); // Больница
+villageGroup.add(createHouse(20, 25, 'farm')); // Ферма
+villageGroup.add(createHouse(65, 40, 'builder')); // Строитель
+// Жилые дома
+for(let i=0; i<8; i++) {
+    const angle = (i/8)*Math.PI*2;
+    villageGroup.add(createHouse(50 + Math.cos(angle)*40, 50 + Math.sin(angle)*40));
+}
+// Фонтан
+const fountain = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 1), new THREE.MeshStandardMaterial({color:0xaaaaaa}));
+fountain.position.set(50, 0.5, 50);
+villageGroup.add(fountain);
+
+// --- ГОРОД (-200, -100) ---
+const cityGroup = new THREE.Group();
+for(let i=0; i<25; i++) {
+    const x = -150 + (Math.random()-0.5)*100;
+    const z = -150 + (Math.random()-0.5)*100;
+    const s = createHouse(x, z, 'skyscraper');
+    cityGroup.add(s);
+}
+scene.add(cityGroup);
+
+// --- РЕСУРСЫ И ПРИРОДА ---
+const resourcesGroup = new THREE.Group();
+scene.add(resourcesGroup);
+
+function createTree(x, z) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 4), new THREE.MeshStandardMaterial({map: textures.wood}));
+    trunk.position.set(x, 2, z);
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(3, 8, 8), new THREE.MeshStandardMaterial({color: 0x2d5a27}));
+    leaves.position.set(x, 7, z);
+    trunk.castShadow = leaves.castShadow = true;
+    
+    // Интерактивный объект
+    const col = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), new THREE.MeshBasicMaterial({visible:false}));
+    col.position.set(x, 4, z);
+    col.userData = { type: 'resource', resType: 'wood', hp: 100 };
+    state.world.resources.push(col);
+    
+    resourcesGroup.add(trunk, leaves, col);
+}
+
+function createRock(x, z, isGold=false) {
+    const geo = new THREE.DodecahedronGeometry(1.5);
+    const mat = new THREE.MeshStandardMaterial({ color: isGold ? 0xffd700 : 0x888888 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, 1, z);
+    mesh.userData = { type: 'resource', resType: isGold?'gold':'stone', hp: 100 };
+    state.world.resources.push(mesh);
+    resourcesGroup.add(mesh);
+}
+
+// Генерация леса и камней
+for(let i=0; i<120; i++) createTree((Math.random()-0.5)*800, (Math.random()-0.5)*800);
+for(let i=0; i<40; i++) createRock((Math.random()-0.5)*800, (Math.random()-0.5)*800, false);
+for(let i=0; i<20; i++) createRock((Math.random()-0.5)*800, (Math.random()-0.5)*800, true);
+
+// --- БАНДИТЫ (-100, -100) ---
+const enemyGeo = new THREE.CapsuleGeometry(0.7, 1.8, 4, 8);
+const enemyMat = new THREE.MeshStandardMaterial({ color: 0x800000 });
+for(let i=0; i<5; i++) {
+    const en = new THREE.Mesh(enemyGeo, enemyMat);
+    en.position.set(-100 + Math.random()*20, 2, -100 + Math.random()*20);
+    en.castShadow = true;
+    en.userData = { type: 'enemy', hp: 50, aggressive: true };
+    scene.add(en);
+    state.world.enemies.push(en);
+}
+
+// --- NPC ---
+const npcData = [
+    { name: "Мэр Василий", role: "mayor", x: 50, z: 30, color: 0x0000ff },
+    { name: "Иван Торговец", role: "merchant", x: 70, z: 55, color: 0x00ff00 },
+    { name: "Петр Кузнец", role: "blacksmith", x: 30, z: 55, color: 0x555555 },
+    { name: "Доктор Анна", role: "doctor", x: 50, z: 75, color: 0xffffff },
+    { name: "Мария Фермер", role: "farmer", x: 20, z: 25, color: 0xffff00 },
+    { name: "Борис Охотник", role: "hunter", x: 80, z: 25, color: 0x8b4513 },
+    { name: "Сергей Строитель", role: "builder", x: 65, z: 40, color: 0xffa500 }
+];
+
+npcData.forEach(d => {
+    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.6, 1.7, 4, 8), new THREE.MeshStandardMaterial({ color: d.color }));
+    mesh.position.set(d.x, 1.8, d.z);
+    mesh.castShadow = true;
+    mesh.userData = { type: 'npc', data: d };
+    scene.add(mesh);
+    state.world.npcs.push(mesh);
+    
+    // Добавляем точку на карту
+    const mapDot = document.createElement('div');
+    mapDot.className = 'map-dot';
+    mapDot.style.background = 'blue';
+    mapDot.style.left = (d.x + 500)/10 + '%';
+    mapDot.style.top = (d.z + 500)/10 + '%';
+    document.getElementById('minimap-content').appendChild(mapDot);
+});
+
+// --- ИГРОК ---
+const playerObj = new THREE.Object3D();
+playerObj.position.set(10, 2, 10);
+scene.add(playerObj);
+// Камера привязана к объекту игрока (логически)
+
+// ==========================================
+// 5. УПРАВЛЕНИЕ И ВЗАИМОДЕЙСТВИЕ
+// ==========================================
+const keys = {};
+window.addEventListener('keydown', (e) => {
+    if(state.flags.menuOpen && e.code === 'Escape') { ui.closeMenus(); return; }
+    keys[e.code] = true;
+    
+    if(!state.flags.menuOpen) {
+        if(e.code === 'KeyE') interact();
+        if(e.code === 'KeyV') toggleVehicle();
+        if(e.code === 'KeyI') ui.openMenu('inventory');
+        if(e.code === 'KeyB') ui.openMenu('build');
+        if(e.code === 'KeyC') state.player.thirdPerson = !state.player.thirdPerson;
+        if(e.code === 'KeyL') buyLand();
+    }
+});
+window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+// Мышь
+let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement && !state.flags.menuOpen) {
+        euler.y -= e.movementX * 0.002;
+        euler.x -= e.movementY * 0.002;
+        euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+        camera.quaternion.setFromEuler(euler);
+    }
+});
+document.addEventListener('click', () => {
+    if(!state.flags.menuOpen) document.body.requestPointerLock();
+});
+
+// Рейкастер для взаимодействия
+const raycaster = new THREE.Raycaster();
+function checkInteraction() {
+    raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+    const objects = [...state.world.npcs, ...state.world.resources, ...state.world.buildings];
+    const intersects = raycaster.intersectObjects(objects);
+    
+    const msg = document.getElementById('interaction-msg');
+    state.flags.nearNPC = null;
+    state.flags.nearResource = null;
+
+    if(intersects.length > 0 && intersects[0].distance < 4) {
+        const obj = intersects[0].object;
+        msg.style.display = 'block';
+        if(obj.userData.type === 'npc') {
+            msg.innerText = `[E] Говорить: ${obj.userData.data.name}`;
+            state.flags.nearNPC = obj.userData.data;
+        } else if (obj.userData.type === 'resource') {
+            msg.innerText = `[E] Собрать ${obj.userData.resType}`;
+            state.flags.nearResource = obj;
+        } else {
+             msg.style.display = 'none';
+        }
+    } else {
+        msg.style.display = 'none';
+    }
+}
+
+function interact() {
+    if(state.flags.nearNPC) {
+        ui.showDialog(state.flags.nearNPC);
+    } else if (state.flags.nearResource) {
+        harvest(state.flags.nearResource);
+    }
+}
+
+function harvest(obj) {
+    const type = obj.userData.resType;
+    let amount = 1;
+    let bonus = 1;
+    
+    // Бонусы профессии
+    if(state.player.job === 'Охотник' || state.player.job === 'Президент') bonus = 1.5;
+    
+    // Инвентарь
+    state.player.inventory[type] = (state.player.inventory[type] || 0) + Math.floor(amount * bonus);
+    state.player.money += (type==='gold'? 50 : (type==='iron'? 20 : 10)) * bonus;
+    state.player.stamina -= 5;
+    
+    // Удаление
+    scene.remove(obj);
+    state.world.resources = state.world.resources.filter(r => r !== obj);
+    
+    ui.notify(`Получено: ${type} x${Math.floor(amount*bonus)}`);
+}
+
+function toggleVehicle() {
+    if(state.player.vehicle) {
+        state.player.vehicle = null;
+        ui.notify("Вы пошли пешком");
+    } else {
+        // Проверка зоны
+        if(playerObj.position.y < 0) state.player.vehicle = 'boat';
+        else state.player.vehicle = 'horse';
+        ui.notify(`Транспорт: ${state.player.vehicle === 'boat' ? 'Лодка' : 'Лошадь'}`);
+    }
+}
+
+function buyLand() {
+    if(state.player.money >= 200) {
+        state.player.money -= 200;
+        state.player.lands++;
+        ui.notify("Участок куплен! (-200💰)");
+    } else {
+        ui.notify("Недостаточно денег (200💰)");
+    }
+}
+
+// ==========================================
+// 6. UI И ЛОГИКА МЕНЮ
+// ==========================================
+const ui = {
+    notify: (text) => {
+        const div = document.createElement('div');
+        div.className = 'notify'; div.innerText = text;
+        document.getElementById('notification-area').appendChild(div);
+        setTimeout(() => div.remove(), 4000);
+    },
+    openMenu: (id) => {
+        document.exitPointerLock();
+        state.flags.menuOpen = true;
+        document.querySelectorAll('.menu-modal').forEach(m => m.style.display = 'none');
+        document.getElementById(id + '-menu').style.display = 'block';
+        if(id === 'inventory') ui.renderInventory();
+        if(id === 'build') ui.renderBuild();
+    },
+    closeMenus: () => {
+        state.flags.menuOpen = false;
+        document.querySelectorAll('.menu-modal').forEach(m => m.style.display = 'none');
+        document.body.requestPointerLock();
+    },
+    renderInventory: () => {
+        const list = document.getElementById('inv-list');
+        list.innerHTML = '';
+        for(let k in state.player.inventory) {
+            if(state.player.inventory[k] > 0) {
+                list.innerHTML += `<div>${k}: ${state.player.inventory[k]}</div>`;
+            }
+        }
+    },
+    renderBuild: () => {
+        const list = document.getElementById('build-list');
+        const builds = [
+            {n:'Дом', w:10, s:5, c:300}, {n:'Ферма', w:15, s:3, c:400},
+            {n:'Магазин', w:20, s:10, c:600}, {n:'Склад', w:25, s:15, c:800}
+        ];
+        list.innerHTML = builds.map(b => 
+            `<button class="btn" onclick="buildItem('${b.n}', ${b.w}, ${b.s}, ${b.c})">
+             ${b.n} (🪵${b.w} 🪨${b.s} 💰${b.c})</button>`
+        ).join('');
+    },
+    showDialog: (npc) => {
+        ui.openMenu('dialog');
+        document.getElementById('npc-name').innerText = npc.name;
+        const opts = document.getElementById('npc-options');
+        opts.innerHTML = '';
+        
+        if(npc.role === 'mayor') {
+            document.getElementById('npc-text').innerText = "Приветствую в нашем городе! Кем хочешь работать?";
+            ['Фермер','Строитель','Торговец','Охотник','Президент'].forEach(job => {
+                opts.innerHTML += `<button class="btn" onclick="setJob('${job}')">Стать: ${job} ${job==='Президент'?'(500💰)':''}</button>`;
+            });
+            opts.innerHTML += `<hr><button class="btn" onclick="getQuest()">Взять квест</button>`;
+        } else if (npc.role === 'merchant') {
+             document.getElementById('npc-text').innerText = "Лучшие товары!";
+             opts.innerHTML += `<button class="btn" onclick="buyItem('food', 15)">Хлеб (15💰)</button>`;
+             opts.innerHTML += `<button class="btn" onclick="buyItem('medkit', 60)">Аптечка (60💰)</button>`;
+        } else if (npc.role === 'doctor') {
+            document.getElementById('npc-text').innerText = "Болит что-то?";
+            opts.innerHTML += `<button class="btn" onclick="healPlayer(40)">Лечение (40💰)</button>`;
+        } else {
+             document.getElementById('npc-text').innerText = "Хороший денек, да?";
+        }
+    }
+};
+
+window.setJob = (job) => {
+    if(job === 'Президент') {
+        if(state.player.money >= 500) { state.player.money -= 500; state.player.job = job; }
+        else ui.notify("Мало денег!");
+    } else {
+        state.player.job = job;
+    }
+    ui.closeMenus();
+    ui.notify("Профессия: " + state.player.job);
+};
+
+window.buyItem = (item, cost) => {
+    let finalCost = cost;
+    if(state.player.job === 'Торговец' || state.player.job === 'Президент') finalCost *= 0.8;
+    
+    if(state.player.money >= finalCost) {
+        state.player.money -= finalCost;
+        if(item === 'food') state.player.inventory.food++;
+        if(item === 'medkit') state.player.inventory.medkit++;
+        ui.notify(`Куплено: ${item}`);
+    } else ui.notify("Нет денег!");
+};
+
+window.healPlayer = (cost) => {
+    if(state.player.money >= cost) {
+        state.player.money -= cost;
+        state.player.hp = Math.min(100, state.player.hp + 50);
+        ui.notify("Здоровье восстановлено");
+    }
+};
+
+window.buildItem = (type, w, s, c) => {
+    if(state.player.job !== 'Строитель' && state.player.job !== 'Президент') {
+        ui.notify("Вы не строитель!"); return;
+    }
+    if(state.player.inventory.wood >= w && state.player.inventory.stone >= s && state.player.money >= c) {
+        state.player.inventory.wood -= w;
+        state.player.inventory.stone -= s;
+        state.player.money -= c;
+        
+        // Стройка перед игроком
+        const pos = playerObj.position.clone();
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).multiplyScalar(10);
+        const house = createHouse(pos.x + dir.x, pos.z + dir.z);
+        scene.add(house);
+        ui.closeMenus();
+        ui.notify("Построено!");
+    } else {
+        ui.notify("Не хватает ресурсов");
+    }
+};
+
+window.getQuest = () => {
+    ui.notify("Квест получен: Победить 5 бандитов");
+};
+
+// ==========================================
+// 7. ИГРОВОЙ ЦИКЛ (PHYSICS & LOGIC)
+// ==========================================
+const clock = new THREE.Clock();
+
+function updateStats(delta) {
+    // Голод
+    state.player.food -= delta * 0.5; // 3 ед в час (час = 6 сек)
+    if(state.player.food <= 0) { state.player.food = 0; state.player.hp -= delta; }
+    if(state.player.hp <= 0) { state.player.hp = 100; playerObj.position.set(0,5,0); ui.notify("ВЫ ПОГИБЛИ. Возрождение..."); }
+    
+    // UI Update
+    document.getElementById('val-hp').innerText = Math.floor(state.player.hp);
+    document.getElementById('hp-fill').style.width = state.player.hp + '%';
+    document.getElementById('val-food').innerText = Math.floor(state.player.food);
+    document.getElementById('food-fill').style.width = state.player.food + '%';
+    document.getElementById('val-money').innerText = Math.floor(state.player.money);
+    document.getElementById('val-job').innerText = state.player.job;
+    document.getElementById('val-land').innerText = state.player.lands;
+    
+    // Время
+    state.world.time += delta * 0.2; // 1 игровой час = 5 реальных секунд
+    if(state.world.time >= 24) {
+        state.world.time = 0; 
+        state.world.day++;
+        state.world.taxesPaid = false;
+        // Вор (30% шанс)
+        if(Math.random() < 0.3) {
+            const stolen = Math.floor(Math.random()*50)+50;
+            state.player.money = Math.max(0, state.player.money - stolen);
+            ui.notify(`Вор украл ${stolen} монет!`);
+        }
+    }
+    
+    // Смена дня и ночи
+    const sunY = Math.sin((state.world.time - 6) / 24 * Math.PI * 2);
+    sun.position.y = sunY * 200;
+    sun.position.x = Math.cos((state.world.time - 6) / 24 * Math.PI * 2) * 200;
+    sun.intensity = Math.max(0, sunY * 1.5);
+    scene.background.setHSL(0.6, 0.5, Math.max(0.05, sunY * 0.5));
+    
+    document.getElementById('game-time').innerText = `${Math.floor(state.world.time)}:00`;
+    document.getElementById('game-date').innerText = `День ${state.world.day} (${seasons[state.world.season]})`;
+    
+    // Налоги
+    if(Math.floor(state.world.time) === 12 && !state.world.taxesPaid) {
+        const tax = state.player.lands * 5;
+        if(tax > 0) {
+            state.player.money -= tax;
+            ui.notify(`Уплачен налог: ${tax}💰`);
+        }
+        state.world.taxesPaid = true;
+    }
+}
+
+function updatePlayer(delta) {
+    const p = state.player;
+    const moveSpeed = p.vehicle ? (p.vehicle==='horse'?20 : (p.vehicle==='boat'?15:10)) : (keys['ShiftLeft']? 12 : 6);
+    
+    const velocity = new THREE.Vector3();
+    const dir = new THREE.Vector3();
+    
+    if(keys['KeyW']) dir.z = -1;
+    if(keys['KeyS']) dir.z = 1;
+    if(keys['KeyA']) dir.x = -1;
+    if(keys['KeyD']) dir.x = 1;
+    
+    if(dir.length() > 0) dir.normalize().multiplyScalar(moveSpeed * delta);
+    
+    // Поворот направления относительно камеры
+    dir.applyEuler(new THREE.Euler(0, euler.y, 0));
+    playerObj.position.add(dir);
+    
+    // Гравитация и земля
+    // Простая проверка высоты (для примера)
+    // В реальности нужен raycast вниз
+    const terrainHeight = 0; // упрощено, реальная высота нужна через Raycaster
+    if(playerObj.position.y > terrainHeight + 1.6) {
+        playerObj.position.y -= 9.8 * delta;
+    } else {
+        playerObj.position.y = terrainHeight + 1.6;
+        if(keys['Space']) playerObj.position.y += 2; // Прыжок
+    }
+    
+    // Камера
+    if(p.thirdPerson) {
+        const offset = new THREE.Vector3(0, 3, 6).applyEuler(new THREE.Euler(0, euler.y, 0));
+        camera.position.copy(playerObj.position).add(offset);
+        camera.lookAt(playerObj.position);
+    } else {
+        camera.position.copy(playerObj.position);
+        camera.quaternion.setFromEuler(euler);
+    }
+    
+    // Обновление точки на карте
+    const dot = document.getElementById('player-dot-map');
+    if(!dot) {
+        const d = document.createElement('div'); d.id='player-dot-map'; 
+        d.className = 'map-dot'; d.style.background='lime';
+        document.getElementById('minimap-content').appendChild(d);
+    }
+    const mapX = (playerObj.position.x + 500) / 10;
+    const mapY = (playerObj.position.z + 500) / 10;
+    document.getElementById('player-dot-map').style.left = mapX+'%';
+    document.getElementById('player-dot-map').style.top = mapY+'%';
+    
+    // Обновление локации
+    const z = playerObj.position.z;
+    const x = playerObj.position.x;
+    let loc = "Дикая местность";
+    if(x > 10 && x < 100 && z > 10 && z < 100) loc = "Деревня";
+    if(x < -100 && z < -100) loc = "Город";
+    if(x > 150) loc = "Горы";
+    if(z < -200) loc = "Море";
+    if(x > -130 && x < -50 && z > -130 && z < -50) loc = "Логово бандитов";
+    document.getElementById('game-loc').innerText = loc;
+}
+
+function updateAI(delta) {
+    state.world.enemies.forEach(en => {
+        const dist = en.position.distanceTo(playerObj.position);
+        if(dist < 30) {
+            en.lookAt(playerObj.position);
+            en.translateZ(5 * delta); // Скорость бандита
+            if(dist < 2) {
+                state.player.hp -= 10 * delta;
+                ui.notify("Вас атакуют!");
+            }
+        }
+    });
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    
+    if(!state.flags.menuOpen) {
+        updatePlayer(delta);
+        updateStats(delta);
+        updateAI(delta);
+        checkInteraction();
+    }
+    
+    renderer.render(scene, camera);
+}
+
+animate();
+
+</script>
+</body>
+</html>
