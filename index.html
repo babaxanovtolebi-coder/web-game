@@ -1,14 +1,1 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Epoch Clash RPG</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <h1>Welcome to Epoch Clash RPG</h1>
-    <div id="game"></div>
-    <script src="script.js"></script>
-</body>
-</html>
+<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Epoch Clash RPG</title>\n    <style>\n        body { margin: 0; }\n        canvas { display: block; }\n    </style>\n</head>\n<body>\n    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>\n    <script>\n        // Basic Three.js setup\n        const scene = new THREE.Scene();\n        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);\n        const renderer = new THREE.WebGLRenderer();\n        renderer.setSize(window.innerWidth, window.innerHeight);\n        document.body.appendChild(renderer.domElement);\n\n        // World generation: Medieval Zone & Modern City\n        function generateWorld() {\n            // TODO: Implement world generation logic here\n        }\n\n        // First-person controls\n        function setupControls() {\n            // TODO: Implement first-person controls logic here\n        }\n\n        // Inventory system\n        function setupInventory() {\n            // TODO: Implement inventory system logic here\n        }\n\n        // NPC trading\n        function setupNPCs() {\n            // TODO: Implement NPC trading logic here\n        }\n\n        function animate() {\n            requestAnimationFrame(animate);\n            // TODO: Update game state and render\n            renderer.render(scene, camera);\n        }\n\n        // Initialize the game\n        generateWorld();\n        setupControls();\n        setupInventory();\n        setupNPCs();\n        animate();\n    </script>\n</body>\n</html>
